@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EstateIQ — House Price Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Josefin+Sans:wght@100;300;400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--ink:#050608;--paper:#0a0c14;--panel:#0d1020;--gold:#d4a843;--gold2:#f0c96a;--ice:#a8c4e0;--line:rgba(168,196,224,0.12);--line2:rgba(212,168,67,0.2);--text:#e8edf5;--muted:#4a5570}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{background:var(--paper);color:var(--text);font-family:'Josefin Sans',sans-serif;min-height:100vh;overflow-x:hidden;cursor:none}
+    .cursor-dot{position:fixed;z-index:9999;width:8px;height:8px;background:var(--gold);border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);transition:width .2s,height .2s,transform .1s}
+    .cursor-ring{position:fixed;z-index:9998;width:36px;height:36px;border:1px solid rgba(212,168,67,.5);border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);transition:width .3s,height .3s,border-color .3s}
+    #bp-canvas{position:fixed;inset:0;z-index:0;opacity:.35}
+    .page{position:relative;z-index:2;min-height:100vh;display:grid;grid-template-rows:auto 1fr auto}
+    header{display:flex;align-items:center;justify-content:space-between;padding:26px 60px;border-bottom:1px solid var(--line);position:relative}
+    header::after{content:'';position:absolute;bottom:-2px;left:60px;width:100px;height:1px;background:linear-gradient(90deg,var(--gold),transparent)}
+    .logo-wrap{display:flex;align-items:center;gap:14px}
+    .logo-mark{width:42px;height:42px}
+    .logo-mark svg{width:100%;height:100%}
+    .logo-name{font-family:'Cormorant Garamond',serif;font-size:1.75rem;font-weight:600;letter-spacing:.12em;line-height:1}
+    .logo-name span{color:var(--gold)}
+    .logo-sub{font-size:.56rem;letter-spacing:.35em;color:var(--muted);margin-top:3px;text-transform:uppercase}
+    nav{display:flex;gap:32px;align-items:center}
+    nav a{font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);text-decoration:none;transition:color .2s}
+    nav a:hover{color:var(--gold)}
+    .nav-pill{background:rgba(212,168,67,.08);border:1px solid var(--line2);color:var(--gold);font-size:.58rem;letter-spacing:.2em;padding:7px 16px;text-transform:uppercase;border-radius:2px;cursor:none;transition:background .2s}
+    .nav-pill:hover{background:rgba(212,168,67,.16)}
+    .hero{padding:0 60px;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;min-height:calc(100vh - 200px)}
+    .hero-left{padding:60px 0}
+    .hero-tag{display:inline-flex;align-items:center;gap:10px;font-size:.6rem;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:26px;opacity:0;animation:fadeUp .8s .2s forwards}
+    .hero-tag::before{content:'';display:block;width:26px;height:1px;background:var(--gold)}
+    h1{font-family:'Cormorant Garamond',serif;font-size:clamp(3.2rem,5.5vw,6rem);font-weight:300;line-height:.95;margin-bottom:28px;opacity:0;animation:fadeUp .9s .35s forwards}
+    h1 em{font-style:italic;color:var(--gold);display:block}
+    h1 strong{font-weight:700;display:block}
+    .hero-desc{font-size:.76rem;letter-spacing:.06em;color:var(--muted);line-height:1.9;max-width:340px;margin-bottom:44px;opacity:0;animation:fadeUp .9s .5s forwards}
+    .hero-stats{display:flex;gap:36px;opacity:0;animation:fadeUp .9s .65s forwards}
+    .stat{display:flex;flex-direction:column;gap:4px}
+    .stat-num{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:600;color:var(--gold);line-height:1}
+    .stat-lbl{font-size:.58rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+    .stat-div{width:1px;background:var(--line);align-self:stretch}
+    .form-container{opacity:0;animation:fadeRight 1s .4s forwards}
+    .form-card{background:var(--panel);border:1px solid var(--line);border-radius:3px;position:relative;overflow:hidden}
+    .form-card::before,.form-card::after{content:'';position:absolute;width:22px;height:22px;border-color:var(--gold);border-style:solid;z-index:3}
+    .form-card::before{top:-1px;left:-1px;border-width:1px 0 0 1px}
+    .form-card::after{bottom:-1px;right:-1px;border-width:0 1px 1px 0}
+    .card-top-bar{display:flex;align-items:center;gap:10px;padding:16px 26px;border-bottom:1px solid var(--line);background:rgba(168,196,224,.02)}
+    .top-dot{width:7px;height:7px;border-radius:50%}
+    .top-dot.gold{background:var(--gold);box-shadow:0 0 8px var(--gold)}
+    .top-dot.ice{background:var(--ice);opacity:.4}
+    .top-dot.dim{background:var(--muted);opacity:.3}
+    .card-title-bar{margin-left:auto;font-size:.58rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+    .card-body{padding:26px}
+    .fsec{margin-bottom:24px}
+    .fsec-hdr{display:flex;align-items:center;gap:10px;font-size:.58rem;letter-spacing:.25em;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+    .fsec-hdr::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+    .fsec-num{width:17px;height:17px;border:1px solid var(--line2);border-radius:50%;font-size:.52rem;display:grid;place-items:center;color:var(--gold);flex-shrink:0}
+    .fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px}
+    label.lbl{font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+    input[type=number],select{background:rgba(168,196,224,.04);border:1px solid rgba(168,196,224,.1);color:var(--text);font-family:'Josefin Sans',sans-serif;font-size:.85rem;letter-spacing:.06em;padding:10px 13px;border-radius:2px;outline:none;-webkit-appearance:none;width:100%;transition:border-color .25s,background .25s,box-shadow .25s}
+    input[type=number]:focus,select:focus{border-color:rgba(212,168,67,.5);background:rgba(212,168,67,.04);box-shadow:0 0 0 3px rgba(212,168,67,.06)}
+    input::placeholder{color:var(--muted);opacity:.7}
+    select option{background:var(--panel)}
+    input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+    .toggles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .tog{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:13px 8px;background:rgba(168,196,224,.03);border:1px solid rgba(168,196,224,.08);border-radius:2px;cursor:none;transition:border-color .2s,background .2s,transform .15s;user-select:none;text-align:center}
+    .tog:hover{border-color:rgba(212,168,67,.3);transform:translateY(-1px)}
+    .tog.on{border-color:rgba(212,168,67,.45);background:rgba(212,168,67,.06)}
+    .tog.on .tog-icon{color:var(--gold)}
+    .tog.on .tog-check{opacity:1;transform:scale(1)}
+    .tog-icon{font-size:1.35rem;line-height:1;color:var(--muted);transition:color .2s}
+    .tog-lbl{font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);line-height:1.3;transition:color .2s}
+    .tog.on .tog-lbl{color:var(--text)}
+    .tog-check{position:absolute;top:6px;right:7px;width:13px;height:13px;border:1px solid var(--gold);border-radius:50%;background:var(--gold);display:grid;place-items:center;opacity:0;transform:scale(.4);transition:opacity .2s,transform .25s cubic-bezier(.34,1.56,.64,1)}
+    .tog-check::after{content:'✓';font-size:7px;color:#000;font-weight:bold}
+    .tog input{display:none}
+    .submit-row{display:flex;gap:10px;margin-top:22px}
+    .btn-main{flex:1;position:relative;overflow:hidden;background:linear-gradient(135deg,#b8901e 0%,var(--gold) 50%,var(--gold2) 100%);border:none;color:#08090f;font-family:'Josefin Sans',sans-serif;font-weight:600;font-size:.7rem;letter-spacing:.25em;text-transform:uppercase;padding:15px 26px;border-radius:2px;cursor:none;transition:opacity .2s,transform .15s,box-shadow .2s}
+    .btn-main::before{content:'';position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.15),transparent);pointer-events:none}
+    .btn-main:hover{transform:translateY(-2px);opacity:.95;box-shadow:0 10px 28px rgba(212,168,67,.3)}
+    .btn-main:active{transform:none}
+    .btn-main:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--muted);font-family:'Josefin Sans',sans-serif;font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;padding:15px 20px;border-radius:2px;cursor:none;transition:border-color .2s,color .2s}
+    .btn-ghost:hover{border-color:var(--line2);color:var(--gold)}
+    .loader{display:none;gap:5px;align-items:center;justify-content:center}
+    .loader span{width:5px;height:5px;background:#000;border-radius:50%;animation:blink 1.2s infinite}
+    .loader span:nth-child(2){animation-delay:.2s}
+    .loader span:nth-child(3){animation-delay:.4s}
+    @keyframes blink{0%,80%,100%{opacity:.3}40%{opacity:1}}
+    .result-overlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(5,6,8,.92);backdrop-filter:blur(14px);place-items:center}
+    .result-overlay.show{display:grid;animation:fadeIn .3s forwards}
+    .result-box{position:relative;width:580px;max-width:92vw;background:var(--panel);border:1px solid var(--line2);border-radius:3px;overflow:hidden;animation:scaleIn .5s cubic-bezier(.22,1,.36,1) forwards}
+    .result-box::before,.result-box::after{content:'';position:absolute;width:24px;height:24px;border-color:var(--gold);border-style:solid}
+    .result-box::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
+    .result-box::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+    .result-top{padding:28px 34px 22px;border-bottom:1px solid var(--line);position:relative}
+    .result-eyebrow{font-size:.58rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:10px}
+    .result-eyebrow::before{content:'';display:block;width:18px;height:1px;background:var(--gold)}
+    .price-row{display:flex;align-items:baseline;gap:4px;margin-bottom:6px}
+    .r-cur{font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:300;color:var(--gold);line-height:1;align-self:flex-start;margin-top:8px}
+    .r-num{font-family:'Cormorant Garamond',serif;font-size:5.2rem;font-weight:600;color:var(--text);line-height:.9;letter-spacing:-.02em}
+    .r-unit{font-family:'Cormorant Garamond',serif;font-size:1.7rem;color:var(--gold);font-weight:300;align-self:flex-end;margin-bottom:8px}
+    .r-sub{font-size:.62rem;letter-spacing:.1em;color:var(--muted)}
+    .result-close{position:absolute;top:18px;right:22px;width:28px;height:28px;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--muted);font-size:.85rem;cursor:none;display:grid;place-items:center;transition:border-color .2s,color .2s}
+    .result-close:hover{border-color:var(--gold);color:var(--gold)}
+    .result-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line)}
+    .rm-cell{padding:14px 18px;background:var(--panel);display:flex;flex-direction:column;gap:4px}
+    .rm-k{font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+    .rm-v{font-size:.88rem;color:var(--text);font-weight:300;letter-spacing:.05em}
+    .result-foot{padding:16px 34px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    .rf-model{font-size:.58rem;letter-spacing:.15em;color:var(--muted)}
+    .rf-acc{display:flex;align-items:center;gap:8px;font-size:.58rem;letter-spacing:.1em;color:var(--muted)}
+    .acc-bar{width:76px;height:3px;background:var(--line);border-radius:2px;overflow:hidden}
+    .acc-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:2px;animation:accGrow 1s .8s both}
+    @keyframes accGrow{from{width:0}to{width:78%}}
+    .toast{position:fixed;bottom:38px;left:50%;transform:translateX(-50%) translateY(16px);background:rgba(180,50,50,.12);border:1px solid rgba(220,60,60,.3);color:#e07070;font-size:.7rem;letter-spacing:.08em;padding:11px 22px;border-radius:2px;z-index:999;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    footer{padding:22px 60px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    .footer-l{font-size:.58rem;letter-spacing:.15em;color:var(--muted)}
+    .footer-r{display:flex;gap:22px}
+    .footer-r span{font-size:.58rem;letter-spacing:.1em;color:var(--muted);display:flex;align-items:center;gap:6px}
+    .footer-r span::before{content:'';display:block;width:5px;height:5px;border-radius:50%;background:var(--gold);opacity:.6}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+    @keyframes fadeRight{from{opacity:0;transform:translateX(36px)}to{opacity:1;transform:none}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes scaleIn{from{opacity:0;transform:scale(.9) translateY(18px)}to{opacity:1;transform:none}}
+    @media(max-width:900px){.hero{grid-template-columns:1fr;padding:40px 24px;gap:40px;min-height:auto}header{padding:20px 24px}nav{display:none}footer{padding:20px 24px;flex-direction:column;gap:10px}.fg3,.toggles{grid-template-columns:1fr 1fr}}
+    @media(max-width:600px){.fg2,.fg3,.toggles{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="cursor-dot" id="cDot"></div>
+<div class="cursor-ring" id="cRing"></div>
+<canvas id="bp-canvas"></canvas>
+<div class="toast" id="toast"></div>
+
+<div class="result-overlay" id="rOverlay">
+  <div class="result-box">
+    <div class="result-top">
+      <button class="result-close" onclick="closeResult()">&#x2715;</button>
+      <div class="result-eyebrow">Estimated Market Value</div>
+      <div class="price-row">
+        <div class="r-cur">&#8377;</div>
+        <div class="r-num" id="rNum">&#8212;</div>
+        <div class="r-unit" id="rUnit"></div>
+      </div>
+      <div class="r-sub">Linear Regression &middot; StandardScaler Pipeline &middot; Housing.csv</div>
+    </div>
+    <div class="result-meta" id="rMeta"></div>
+    <div class="result-foot">
+      <div class="rf-model">sklearn &middot; LinearRegression &middot; v2.0</div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+  <header style="justify-content:center;">
+    <div class="logo-wrap">
+      <div class="logo-mark">
+        <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="22,2 42,14 42,38 22,42 2,38 2,14" stroke="#d4a843" stroke-width="1" fill="none"/>
+          <polygon points="22,8 36,17 36,33 22,37 8,33 8,17" stroke="#d4a843" stroke-width=".5" fill="none" opacity=".4"/>
+          <path d="M14 28 L22 14 L30 28" stroke="#d4a843" stroke-width="1.5" fill="none"/>
+          <line x1="14" y1="28" x2="30" y2="28" stroke="#d4a843" stroke-width="1.5"/>
+          <rect x="19" y="22" width="6" height="6" stroke="#d4a843" stroke-width="1" fill="none"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-name">Estate<span>IQ</span></div>
+        <div class="logo-sub">Property Intelligence</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-left">
+      <div class="hero-tag">ML-Powered Valuation</div>
+      <h1><strong>Intelligent</strong><em>Property</em>Valuation.</h1>
+      <p class="hero-desc">Enter your property specifications and receive an instant price estimate powered by a Linear Regression model trained on real housing market data.</p>
+      <div class="hero-stats">
+        <div class="stat"><div class="stat-num">14</div><div class="stat-lbl">Features</div></div>
+        <div class="stat-div"></div>
+        <div class="stat"><div class="stat-num">545</div><div class="stat-lbl">Trained On</div></div>
+      </div>
+    </div>
+
+    <div class="form-container">
+      <div class="form-card">
+        <div class="card-top-bar">
+          <div class="top-dot gold"></div><div class="top-dot ice"></div><div class="top-dot dim"></div>
+          <div class="card-title-bar">Property Input &middot; v2.0</div>
+        </div>
+        <div class="card-body">
+          <div class="fsec">
+            <div class="fsec-hdr"><div class="fsec-num">01</div>Core Dimensions</div>
+            <div class="fg3">
+              <div class="field"><label class="lbl">Area (sq ft)</label><input type="number" id="area" placeholder="7420" min="500"></div>
+              <div class="field"><label class="lbl">Total Rooms</label><input type="number" id="total_room" placeholder="5" min="1"></div>
+              <div class="field"><label class="lbl">Parking</label><input type="number" id="parking" placeholder="2" min="0"></div>
+            </div>
+          </div>
+          <div class="fsec">
+            <div class="fsec-hdr"><div class="fsec-num">02</div>Structure</div>
+            <div class="fg2">
+              <div class="field"><label class="lbl">Stories</label>
+                <select id="stories"><option value="1">1 Story</option><option value="2">2 Stories</option><option value="3">3 Stories</option><option value="4">4 Stories</option></select>
+              </div>
+              <div class="field"><label class="lbl">Furnishing</label>
+                <select id="furnishing_status"><option value="furnished">Furnished</option><option value="semi-furnished">Semi-Furnished</option><option value="unfurnished">Unfurnished</option></select>
+              </div>
+            </div>
+          </div>
+          <div class="fsec">
+            <div class="fsec-hdr"><div class="fsec-num">03</div>Amenities</div>
+            <div class="toggles">
+              <div class="tog" id="tog-mainroad" onclick="toggleA('mainroad')"><div class="tog-check"></div><div class="tog-icon">&#x1F6E3;&#xFE0F;</div><div class="tog-lbl">Main Road</div><input type="checkbox" id="mainroad"></div>
+              <div class="tog" id="tog-guestroom" onclick="toggleA('guestroom')"><div class="tog-check"></div><div class="tog-icon">&#x1F6CF;&#xFE0F;</div><div class="tog-lbl">Guest Room</div><input type="checkbox" id="guestroom"></div>
+              <div class="tog" id="tog-basement" onclick="toggleA('basement')"><div class="tog-check"></div><div class="tog-icon">&#x1F3D7;&#xFE0F;</div><div class="tog-lbl">Basement</div><input type="checkbox" id="basement"></div>
+              <div class="tog" id="tog-hotwaterheating" onclick="toggleA('hotwaterheating')"><div class="tog-check"></div><div class="tog-icon">&#x1F525;</div><div class="tog-lbl">Hot Water</div><input type="checkbox" id="hotwaterheating"></div>
+              <div class="tog" id="tog-airconditioning" onclick="toggleA('airconditioning')"><div class="tog-check"></div><div class="tog-icon">&#x2744;&#xFE0F;</div><div class="tog-lbl">AC</div><input type="checkbox" id="airconditioning"></div>
+              <div class="tog" id="tog-prefarea" onclick="toggleA('prefarea')"><div class="tog-check"></div><div class="tog-icon">&#x2B50;</div><div class="tog-lbl">Pref Area</div><input type="checkbox" id="prefarea"></div>
+            </div>
+          </div>
+          <div class="submit-row">
+            <button class="btn-main" id="predictBtn" onclick="predict()">
+              <span id="btnTxt">Estimate Value</span>
+              <div class="loader" id="loader"><span></span><span></span><span></span></div>
+            </button>
+            <button class="btn-ghost" onclick="resetForm()">Reset</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="footer-l">&copy; 2025 EstateIQ &middot; All rights reserved</div>
+    <div class="footer-r"><span>Linear Regression</span><span>StandardScaler</span><span>Housing.csv</span></div>
+  </footer>
+</div>
+
+<script>
+const cDot=document.getElementById('cDot'),cRing=document.getElementById('cRing');
+let mx=-100,my=-100,rx=-100,ry=-100;
+document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cDot.style.cssText=`left:${mx}px;top:${my}px`});
+(function ar(){rx+=(mx-rx)*.14;ry+=(my-ry)*.14;cRing.style.cssText=`left:${rx}px;top:${ry}px`;requestAnimationFrame(ar)})();
+document.querySelectorAll('button,.tog,a,input,select,.nav-pill').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cDot.style.transform='translate(-50%,-50%) scale(2)';cRing.style.transform='translate(-50%,-50%) scale(1.5)';cRing.style.borderColor='rgba(212,168,67,.9)'});
+  el.addEventListener('mouseleave',()=>{cDot.style.transform='translate(-50%,-50%)';cRing.style.transform='translate(-50%,-50%)';cRing.style.borderColor='rgba(212,168,67,.5)'});
+});
+
+(function(){
+  const c=document.getElementById('bp-canvas'),ctx=c.getContext('2d');
+  let W,H;
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;draw();}
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle='rgba(168,196,224,0.07)';ctx.lineWidth=.5;
+    for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    ctx.strokeStyle='rgba(212,168,67,.04)';ctx.lineWidth=1;
+    for(let i=-H;i<W+H;i+=180){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+H,H);ctx.stroke();}
+    const pts=[[40,40],[W-40,40],[40,H-40],[W-40,H-40]];
+    ctx.strokeStyle='rgba(212,168,67,.22)';ctx.lineWidth=1;
+    pts.forEach(([x,y])=>{ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x+12,y);ctx.moveTo(x,y-12);ctx.lineTo(x,y+12);ctx.stroke();ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.stroke();});
+    ctx.strokeStyle='rgba(168,196,224,.04)';ctx.lineWidth=.5;
+    for(let r=60;r<400;r+=60){ctx.beginPath();ctx.arc(0,H,r,-Math.PI/2,0);ctx.stroke();}
+  }
+  window.addEventListener('resize',resize);resize();
+  const ps=Array.from({length:20},()=>({x:Math.random()*window.innerWidth,y:Math.random()*window.innerHeight,vy:-(0.3+Math.random()*.5),vx:(Math.random()-.5)*.3,s:1+Math.random()*2,life:Math.random()}));
+  function anim(){ctx.clearRect(0,0,W,H);draw();ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life+=.003;if(p.y<-10||p.life>1){p.x=Math.random()*W;p.y=H+10;p.life=0;}const a=Math.sin(p.life*Math.PI)*.5;ctx.beginPath();ctx.arc(p.x,p.y,p.s,0,Math.PI*2);ctx.fillStyle=`rgba(212,168,67,${a})`;ctx.fill();});requestAnimationFrame(anim);}
+  anim();
+})();
+
+function toggleA(id){const cb=document.getElementById(id),tog=document.getElementById('tog-'+id);cb.checked=!cb.checked;tog.classList.toggle('on',cb.checked);}
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500);}
+function fmt(n){if(n>=1e7)return{num:(n/1e7).toFixed(2),unit:'Cr'};if(n>=1e5)return{num:(n/1e5).toFixed(2),unit:'Lac'};return{num:n.toLocaleString('en-IN',{maximumFractionDigits:0}),unit:''};}
+
+async function predict(){
+  const area=parseFloat(document.getElementById('area').value);
+  const total_room=parseInt(document.getElementById('total_room').value);
+  const parking=parseInt(document.getElementById('parking').value)||0;
+  const stories=parseInt(document.getElementById('stories').value);
+  const furnishing_status=document.getElementById('furnishing_status').value;
+  const mainroad=document.getElementById('mainroad').checked?1:0;
+  const guestroom=document.getElementById('guestroom').checked?1:0;
+  const basement=document.getElementById('basement').checked?1:0;
+  const hotwaterheating=document.getElementById('hotwaterheating').checked?1:0;
+  const airconditioning=document.getElementById('airconditioning').checked?1:0;
+  const prefarea=document.getElementById('prefarea').checked?1:0;
+  if(!area||area<500)return showToast('Enter a valid area (min 500 sq ft)');
+  if(!total_room||total_room<1)return showToast('Enter total rooms');
+  setLoad(true);
+  try{
+    const res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({area,total_room,parking,stories,furnishing_status,mainroad,guestroom,basement,hotwaterheating,airconditioning,prefarea})});
+    const data=await res.json();
+    if(!data.success)throw new Error(data.error);
+    showResult(data.price,{area,total_room,parking,stories,furnishing_status,mainroad,guestroom,basement,hotwaterheating,airconditioning,prefarea});
+  }catch(e){showToast('Cannot reach backend — run: node server.js');console.error(e);}
+  finally{setLoad(false);}
+}
+
+function showResult(price,m){
+  const{num,unit}=fmt(price);
+  document.getElementById('rNum').textContent=num;
+  document.getElementById('rUnit').textContent=unit;
+  const amen=[];
+  if(m.mainroad)amen.push('Main Road');if(m.guestroom)amen.push('Guest Room');if(m.basement)amen.push('Basement');
+  if(m.airconditioning)amen.push('AC');if(m.hotwaterheating)amen.push('Hot Water');if(m.prefarea)amen.push('Pref Area');
+  document.getElementById('rMeta').innerHTML=`<div class="rm-cell"><div class="rm-k">Area</div><div class="rm-v">${m.area.toLocaleString()} sq ft</div></div><div class="rm-cell"><div class="rm-k">Rooms</div><div class="rm-v">${m.total_room} total</div></div><div class="rm-cell"><div class="rm-k">Stories</div><div class="rm-v">${m.stories} floor${m.stories>1?'s':''}</div></div><div class="rm-cell"><div class="rm-k">Parking</div><div class="rm-v">${m.parking} space${m.parking!==1?'s':''}</div></div><div class="rm-cell"><div class="rm-k">Furnishing</div><div class="rm-v">${m.furnishing_status.charAt(0).toUpperCase()+m.furnishing_status.slice(1)}</div></div><div class="rm-cell"><div class="rm-k">Amenities</div><div class="rm-v">${amen.length?amen.join(', '):'None'}</div></div>`;
+  document.getElementById('rOverlay').classList.add('show');
+}
+
+function closeResult(){document.getElementById('rOverlay').classList.remove('show');}
+document.getElementById('rOverlay').addEventListener('click',function(e){if(e.target===this)closeResult();});
+function setLoad(on){document.getElementById('predictBtn').disabled=on;document.getElementById('btnTxt').style.display=on?'none':'inline';document.getElementById('loader').style.display=on?'flex':'none';}
+function resetForm(){['area','total_room','parking'].forEach(id=>document.getElementById(id).value='');document.getElementById('stories').value='1';document.getElementById('furnishing_status').value='furnished';['mainroad','guestroom','basement','hotwaterheating','airconditioning','prefarea'].forEach(id=>{document.getElementById(id).checked=false;document.getElementById('tog-'+id).classList.remove('on');});}
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!document.getElementById('predictBtn').disabled)predict();if(e.key==='Escape')closeResult();});
+</script>
+</body>
+</html>
